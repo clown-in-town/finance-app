@@ -1,56 +1,99 @@
-# Welcome to your Expo app 👋
+# Finance App 💰
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Una aplicación moderna para la gestión de finanzas personales, construida con React Native y Expo. Esta aplicación está diseñada como un prototipo frontend completamente funcional que permite registrar gastos, ingresos, gestionar categorías personalizadas y visualizar un resumen analítico con gráficas dinámicas.
 
-## Get started
+---
 
-1. Install dependencies
+## 🏛️ Arquitectura del Proyecto
 
-   ```bash
-   npm install
-   ```
+La aplicación sigue una arquitectura modular enfocada en el frontend, utilizando las mejores prácticas de React Native:
 
-2. Start the app
+### 1. Enrutamiento (Navegación)
+Utilizamos **Expo Router** para el enrutamiento basado en archivos (File-based routing). 
+* Todo el esquema de navegación por pestañas inferiores (Bottom Tabs) se define en `src/app/_layout.tsx`.
+* Cada archivo dentro de `src/app/` (ej. `index.tsx`, `gastos.tsx`) representa una pantalla independiente en la aplicación.
 
-   ```bash
-   npx expo start
-   ```
+### 2. Gestión de Estado Global
+En lugar de depender de librerías externas complejas como Redux, el estado de la aplicación se gestiona de forma nativa utilizando la **React Context API**.
+* **Archivo Central:** `src/context/FinanceContext.tsx` actúa como el "cerebro" de la aplicación.
+* Contiene toda la lógica de negocio (CRUD) para manejar transacciones (ingresos/gastos) y categorías.
+* El estado reside en memoria de forma local (Ideal para la fase de prototipo actual).
 
-In the output, you'll find options to open the app in a
+### 3. Sistema de Componentes (UI)
+La interfaz de usuario está construida mediante componentes reutilizables alojados en `src/components/`. 
+* Diseñados con una estética moderna usando la API estándar `StyleSheet`.
+* Destacan componentes como `CustomDatePicker` (un calendario modal hecho a medida) y `TransactionCard`.
+* Toda la iconografía es proveída por la librería `lucide-react-native`.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 4. Gráficas y Visualización de Datos
+El módulo de resumen analítico (`src/app/resumen.tsx`) utiliza la librería `react-native-gifted-charts` para procesar y renderizar datos en tiempo real (Gráfica de líneas, pastel y barras) en función de los filtros de fecha.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 📂 Estructura de Carpetas
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+finance-app/
+├── src/
+│   ├── app/                # Rutas y Pantallas (Expo Router)
+│   │   ├── _layout.tsx     # Configuración del Tab Navigator
+│   │   ├── index.tsx       # Pantalla de Inicio (Dashboard)
+│   │   ├── gastos.tsx      # Pantalla de Registro de Gastos
+│   │   ├── ingresos.tsx    # Pantalla de Registro de Ingresos
+│   │   ├── categorias.tsx  # Pantalla de Gestión de Categorías
+│   │   └── resumen.tsx     # Pantalla de Gráficas y Analíticas
+│   ├── components/         # Componentes UI reutilizables
+│   │   ├── CustomButton.tsx
+│   │   ├── CustomDatePicker.tsx
+│   │   └── TransactionCard.tsx
+│   ├── context/            # Lógica de estado global
+│   │   └── FinanceContext.tsx
+│   └── constants/          # Variables globales (Colores, Temas)
+│       └── Colors.ts
+├── package.json            # Dependencias del proyecto
+└── README.md
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 🚀 Pasos para Ejecutar el Proyecto
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Sigue estos pasos para correr la aplicación en tu entorno local.
 
-## Learn more
+### 1. Requisitos Previos
+Asegúrate de tener instalados en tu computadora:
+- **Node.js** (versión LTS recomendada)
+- **Git**
+- La aplicación móvil **Expo Go** instalada en tu dispositivo físico (iOS o Android), o bien, tener configurado un emulador (Android Studio o Xcode Simulator).
 
-To learn more about developing your project with Expo, look at the following resources:
+### 2. Instalación de Dependencias
+Abre una terminal en el directorio raíz del proyecto y ejecuta:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm install
+```
 
-## Join the community
+### 3. Iniciar el Servidor de Desarrollo
+Una vez instaladas las dependencias, inicia Expo ejecutando:
 
-Join our community of developers creating universal apps.
+```bash
+npm start
+```
+*(También puedes usar `npx expo start`)*
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 4. Abrir la Aplicación
+Al ejecutar el comando anterior, se mostrará un código QR en tu terminal (y se abrirá una ventana en tu navegador web).
+
+* **En tu celular físico:** Abre la app **Expo Go** y escanea el código QR que aparece en la terminal.
+* **En emulador Android:** Presiona la tecla `a` en la terminal.
+* **En simulador iOS:** Presiona la tecla `i` en la terminal.
+* **En navegador web:** Presiona la tecla `w` en la terminal. *(Nota: La interfaz está optimizada para móvil, aunque es compatible con la web).*
+
+---
+
+## ✨ Características Principales
+
+* **Registro con Fecha Precisa:** Almacenamiento de transacciones con marca de tiempo exacta (ISO).
+* **Calendario Personalizado:** Interfaz modal fluida para selección de fechas retrospectivas.
+* **Categorías Dinámicas:** Creación, edición y eliminación de categorías (con protección a eliminación en cascada hacia la categoría "General").
+* **Analítica en Tiempo Real:** Las gráficas reaccionan de manera instantánea a cualquier nuevo registro.
