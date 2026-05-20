@@ -2,6 +2,8 @@
 
 Una aplicación moderna para la gestión de finanzas personales, construida con React Native y Expo. Esta aplicación está diseñada como un prototipo frontend completamente funcional que permite registrar gastos, ingresos, gestionar categorías personalizadas y visualizar un resumen analítico con gráficas dinámicas.
 
+-- David Gamaliel Mares Márquez
+
 ---
 
 ## 🏛️ Arquitectura del Proyecto
