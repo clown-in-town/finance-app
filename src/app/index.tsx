@@ -2,13 +2,29 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { MOCK_TRANSACTIONS, CURRENT_BALANCE } from '@/constants/MockData';
 import { TransactionCard } from '@/components/TransactionCard';
 import { Wallet } from 'lucide-react-native';
+import { useFinance } from '@/context/FinanceContext';
 
 export default function HomeScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
+  
+  const { expenses } = useFinance();
+
+  // Calcular balance real
+  const balance = expenses.reduce((acc, current) => {
+    if (current.type === 'income') {
+      return acc + current.amount;
+    } else {
+      return acc - current.amount;
+    }
+  }, 0);
+
+  // Ordenar movimientos cronológicamente (más recientes primero)
+  const sortedTransactions = [...expenses].sort((a, b) => {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -17,21 +33,27 @@ export default function HomeScreen() {
           <Wallet color="#ffffff" size={24} />
           <Text style={styles.balanceTitle}>Balance Actual</Text>
         </View>
-        <Text style={styles.balanceAmount}>${CURRENT_BALANCE.toFixed(2)}</Text>
+        <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos Movimientos</Text>
-        {MOCK_TRANSACTIONS.map(tx => (
-          <TransactionCard
-            key={tx.id}
-            type={tx.type as 'income' | 'expense'}
-            amount={tx.amount}
-            description={tx.description}
-            date={tx.date}
-            categoryId={tx.categoryId}
-          />
-        ))}
+        {sortedTransactions.length === 0 ? (
+          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 20 }}>
+            No hay movimientos recientes.
+          </Text>
+        ) : (
+          sortedTransactions.map(tx => (
+            <TransactionCard
+              key={tx.id}
+              type={tx.type as 'income' | 'expense'}
+              amount={tx.amount}
+              description={tx.description}
+              date={tx.date}
+              categoryId={tx.categoryId}
+            />
+          ))
+        )}
       </View>
     </ScrollView>
   );

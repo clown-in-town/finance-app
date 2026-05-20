@@ -1,17 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { MOCK_TRANSACTIONS } from '@/constants/MockData';
 import { TransactionCard } from '@/components/TransactionCard';
 import { CustomButton } from '@/components/CustomButton';
+import { useFinance } from '@/context/FinanceContext';
+import { CustomDatePicker } from '@/components/CustomDatePicker';
 
 export default function IngresosScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
   const [showForm, setShowForm] = useState(false);
 
-  const incomes = MOCK_TRANSACTIONS.filter(t => t.type === 'income');
+  const { expenses: allTransactions, addExpense } = useFinance();
+  const incomes = allTransactions.filter(t => t.type === 'income');
+
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date().toISOString());
+
+  const handleSave = () => {
+    if (!description.trim() || !amount.trim()) {
+      Alert.alert('Error', 'Por favor completa todos los campos.');
+      return;
+    }
+
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('Error', 'Por favor ingresa un monto válido.');
+      return;
+    }
+
+    addExpense({
+      type: 'income',
+      amount: numericAmount,
+      description: description.trim(),
+      date: date,
+    });
+    
+    // Reset form
+    setDescription('');
+    setAmount('');
+    setDate(new Date().toISOString());
+    setShowForm(false);
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -30,32 +62,45 @@ export default function IngresosScreen() {
             style={[styles.input, { color: colors.text, borderColor: colors.border }]} 
             placeholder="Descripción" 
             placeholderTextColor={colors.textMuted}
+            value={description}
+            onChangeText={setDescription}
           />
           <TextInput 
             style={[styles.input, { color: colors.text, borderColor: colors.border }]} 
             placeholder="Monto" 
             keyboardType="numeric"
             placeholderTextColor={colors.textMuted}
+            value={amount}
+            onChangeText={setAmount}
           />
-          <TextInput 
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]} 
-            placeholder="Fecha" 
-            placeholderTextColor={colors.textMuted}
+          
+          <CustomDatePicker 
+            label="Fecha"
+            date={date}
+            onChange={setDate}
           />
-          <CustomButton title="Guardar" onPress={() => setShowForm(false)} />
+
+          <CustomButton title="Guardar" onPress={handleSave} />
         </View>
       )}
 
       <View style={styles.listContainer}>
-        {incomes.map(tx => (
-          <TransactionCard
-            key={tx.id}
-            type={tx.type as 'income'}
-            amount={tx.amount}
-            description={tx.description}
-            date={tx.date}
-          />
-        ))}
+        {incomes.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            No hay ingresos registrados aún. ¡Añade uno nuevo!
+          </Text>
+        ) : (
+          incomes.map(tx => (
+            <TransactionCard
+              key={tx.id}
+              type={tx.type as 'income'}
+              amount={tx.amount}
+              description={tx.description}
+              date={tx.date}
+              categoryId={tx.categoryId}
+            />
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -89,4 +134,9 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    marginTop: 32,
+  }
 });

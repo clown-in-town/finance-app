@@ -1,42 +1,97 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { MOCK_BALANCE_HISTORY, MOCK_CATEGORIES, MOCK_TRANSACTIONS } from '@/constants/MockData';
 import { LineChart, PieChart, BarChart } from 'react-native-gifted-charts';
+import { useFinance } from '@/context/FinanceContext';
 
 const { width } = Dimensions.get('window');
 
 export default function ResumenScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
-  const [period, setPeriod] = useState<30 | 60 | 90>(30);
+  
+  const [period, setPeriod] = useState<number | 'all'>(30);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  // Line chart data
-  const lineData = MOCK_BALANCE_HISTORY.map(item => ({
-    value: item.value,
-    label: item.label,
-    dataPointText: item.value.toString()
-  }));
+  const { expenses, categories } = useFinance();
 
-  // Pie chart data
-  const pieData = MOCK_CATEGORIES.map(cat => {
-    const total = MOCK_TRANSACTIONS
+  // 1. Filtrar transacciones según el periodo
+  const now = new Date();
+  const filteredExpenses = expenses.filter(tx => {
+    if (period === 'all') return true;
+    const txDate = new Date(tx.date);
+    const diffTime = Math.abs(now.getTime() - txDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= period;
+  });
+
+  // 2. Datos para gráfico de barras (Ingresos vs Egresos)
+  const totalIncome = filteredExpenses.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredExpenses.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  
+  const barData = [
+    { value: totalIncome, label: 'Ingresos', frontColor: colors.success },
+    { value: totalExpense, label: 'Egresos', frontColor: colors.danger }
+  ];
+
+  // 3. Datos para gráfico de pastel (Gastos por Categoría)
+  const pieDataRaw = categories.map(cat => {
+    const total = filteredExpenses
       .filter(t => t.type === 'expense' && t.categoryId === cat.id)
       .reduce((sum, t) => sum + t.amount, 0);
     return {
-      value: total > 0 ? total : 10, // Mock minimum value for visibility
+      value: total,
       color: cat.color,
       text: cat.name,
     };
+  }).filter(item => item.value > 0);
+
+  const pieData = pieDataRaw.length > 0 
+    ? pieDataRaw 
+    : [{ value: 1, color: colors.border, text: 'Sin gastos' }];
+
+  // 4. Datos para gráfico de línea (Evolución del Balance)
+  const allSorted = [...expenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const cutoffDate = period === 'all' ? new Date(0) : new Date(now.getTime() - period * 24 * 60 * 60 * 1000);
+  
+  let currentBalance = 0;
+  const balancePoints: {date: Date, value: number}[] = [];
+  
+  allSorted.forEach(tx => {
+    const txDate = new Date(tx.date);
+    currentBalance += (tx.type === 'income' ? tx.amount : -tx.amount);
+    
+    if (txDate >= cutoffDate) {
+      balancePoints.push({
+        date: txDate,
+        value: currentBalance
+      });
+    }
   });
 
-  // Bar chart data
-  const barData = [
-    { value: 4000, label: 'Ingresos', frontColor: colors.success },
-    { value: 2500, label: 'Egresos', frontColor: colors.danger }
-  ];
+  if (balancePoints.length === 0) {
+    balancePoints.push({ date: now, value: currentBalance });
+  }
+
+  // Agrupar por día para no saturar la gráfica si hay muchas transacciones el mismo día
+  const groupedPoints: Record<string, number> = {};
+  balancePoints.forEach(p => {
+    const dayStr = `${p.date.getDate().toString().padStart(2, '0')}/${(p.date.getMonth() + 1).toString().padStart(2, '0')}`;
+    groupedPoints[dayStr] = p.value; // Conserva el balance final de ese día
+  });
+
+  let lineData = Object.entries(groupedPoints).map(([label, value]) => ({
+    value: value,
+    label: label,
+  }));
+
+  if (lineData.length === 1) {
+    lineData.unshift({ value: lineData[0].value, label: 'Inicio' });
+  }
+
+  // Agregar espacio si hay muchos puntos
+  const lineSpacing = lineData.length > 5 ? 40 : 60;
 
   const handleScroll = (event: any) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
@@ -44,27 +99,30 @@ export default function ResumenScreen() {
     setActiveSlide(Math.round(index));
   };
 
+  const periods: (number | 'all')[] = [30, 60, 90, 'all'];
+  const getPeriodLabel = (p: number | 'all') => p === 'all' ? 'Todos' : `${p} d`;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.filterContainer}>
         <Text style={[styles.filterLabel, { color: colors.text }]}>Periodo:</Text>
-        <View style={styles.segmentedControl}>
-          {[30, 60, 90].map((p) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentedControl}>
+          {periods.map((p) => (
             <TouchableOpacity
               key={p}
               style={[
                 styles.segmentButton,
                 period === p && { backgroundColor: colors.primary }
               ]}
-              onPress={() => setPeriod(p as 30 | 60 | 90)}
+              onPress={() => setPeriod(p)}
             >
               <Text style={[
                 styles.segmentText,
                 { color: period === p ? '#fff' : colors.text }
-              ]}>{p} días</Text>
+              ]}>{getPeriodLabel(p)}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -82,12 +140,13 @@ export default function ResumenScreen() {
               data={lineData}
               color={colors.primary}
               thickness={3}
+              spacing={lineSpacing}
               dataPointsColor={colors.primary}
               textShiftY={-10}
               textShiftX={-10}
               textColor={colors.text}
-              yAxisTextStyle={{ color: colors.textMuted }}
-              xAxisLabelTextStyle={{ color: colors.textMuted }}
+              yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10 }}
               hideRules
               curved
             />
@@ -103,10 +162,10 @@ export default function ResumenScreen() {
               donut
               radius={100}
               innerRadius={60}
-              showText
+              showText={pieDataRaw.length > 0}
               textColor="black"
               textSize={12}
-              showTextBackground
+              showTextBackground={pieDataRaw.length > 0}
               textBackgroundColor="white"
               textBackgroundRadius={12}
             />
@@ -124,7 +183,7 @@ export default function ResumenScreen() {
               roundedTop
               roundedBottom
               xAxisLabelTextStyle={{ color: colors.textMuted }}
-              yAxisTextStyle={{ color: colors.textMuted }}
+              yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
               hideRules
               showValuesAsTopLabel
               topLabelTextStyle={{ color: colors.text, fontWeight: 'bold' }}
@@ -157,7 +216,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    justifyContent: 'center',
   },
   filterLabel: {
     fontSize: 16,
@@ -202,6 +260,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
+    overflow: 'hidden',
   },
   pagination: {
     flexDirection: 'row',

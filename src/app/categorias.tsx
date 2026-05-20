@@ -1,26 +1,84 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { MOCK_CATEGORIES } from '@/constants/MockData';
 import { CustomButton } from '@/components/CustomButton';
 import { Edit2, Trash2 } from 'lucide-react-native';
+import { useFinance } from '@/context/FinanceContext';
 
 export default function CategoriasScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
-  const [showForm, setShowForm] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  
+  const { categories, addCategory, updateCategory, deleteCategory } = useFinance();
 
-  const handleDelete = (name: string) => {
-    Alert.alert(
-      "Eliminar categoría",
-      `¿Estás seguro de eliminar la categoría "${name}"? Los gastos registrados en esta categoría pasarán a ser "General".`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Eliminar", style: "destructive", onPress: () => console.log('Deleted', name) }
-      ]
-    );
+  const [showForm, setShowForm] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+
+  const handleSave = () => {
+    if (!categoryName.trim()) {
+      Alert.alert('Error', 'El nombre de la categoría es requerido.');
+      return;
+    }
+
+    if (editingCategoryId) {
+      const success = updateCategory(editingCategoryId, categoryName);
+      if (success) {
+        setShowForm(false);
+        setEditingCategoryId(null);
+        setCategoryName('');
+      }
+    } else {
+      const success = addCategory(categoryName);
+      if (success) {
+        setShowForm(false);
+        setCategoryName('');
+      }
+    }
+  };
+
+  const handleEdit = (id: string, name: string) => {
+    if (id === 'general') {
+      Alert.alert('Aviso', 'La categoría general no puede ser modificada.');
+      return;
+    }
+    setEditingCategoryId(id);
+    setCategoryName(name);
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingCategoryId(null);
+    setCategoryName('');
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    if (id === 'general') {
+      Alert.alert('Aviso', 'La categoría general no puede ser eliminada.');
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`¿Estás seguro de eliminar la categoría "${name}"? Los gastos registrados en esta categoría pasarán a ser "General".`);
+      if (confirmed) {
+        deleteCategory(id);
+      }
+    } else {
+      Alert.alert(
+        "Eliminar categoría",
+        `¿Estás seguro de eliminar la categoría "${name}"? Los gastos registrados en esta categoría pasarán a ser "General".`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { 
+            text: "Eliminar", 
+            style: "destructive", 
+            onPress: () => deleteCategory(id)
+          }
+        ]
+      );
+    }
   };
 
   return (
@@ -28,27 +86,29 @@ export default function CategoriasScreen() {
       <View style={styles.header}>
         <CustomButton 
           title={showForm ? "Cancelar" : "Agregar Categoría"} 
-          onPress={() => { setShowForm(!showForm); setEditingCategory(null); }} 
+          onPress={showForm ? handleCancel : () => setShowForm(true)} 
           variant={showForm ? 'outline' : 'primary'}
         />
       </View>
 
-      {(showForm || editingCategory) && (
+      {showForm && (
         <View style={[styles.formContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.formTitle, { color: colors.text }]}>
-            {editingCategory ? 'Modificar Categoría' : 'Nueva Categoría'}
+            {editingCategoryId ? 'Modificar Categoría' : 'Nueva Categoría'}
           </Text>
           <TextInput 
             style={[styles.input, { color: colors.text, borderColor: colors.border }]} 
             placeholder="Nombre de la categoría" 
             placeholderTextColor={colors.textMuted}
+            value={categoryName}
+            onChangeText={setCategoryName}
           />
-          <CustomButton title="Guardar" onPress={() => { setShowForm(false); setEditingCategory(null); }} />
+          <CustomButton title="Guardar" onPress={handleSave} />
         </View>
       )}
 
       <View style={styles.listContainer}>
-        {MOCK_CATEGORIES.map(category => (
+        {categories.map(category => (
           <View key={category.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>
               <View style={[styles.colorDot, { backgroundColor: category.color }]} />
@@ -56,17 +116,16 @@ export default function CategoriasScreen() {
             <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
             
             <View style={styles.actions}>
-              <CustomButton 
-                title="" 
-                variant="outline" 
-                onPress={() => { setEditingCategory(category.id); setShowForm(false); }} 
-              />
-              <View style={styles.actionIcon}>
-                <Edit2 size={20} color={colors.primary} onPress={() => { setEditingCategory(category.id); setShowForm(false); }} />
-              </View>
-              <View style={styles.actionIcon}>
-                <Trash2 size={20} color={colors.danger} onPress={() => handleDelete(category.name)} />
-              </View>
+              {category.id !== 'general' && (
+                <>
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleEdit(category.id, category.name)}>
+                    <Edit2 size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleDelete(category.id, category.name)}>
+                    <Trash2 size={20} color={colors.danger} />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         ))}
